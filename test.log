@@ -1,0 +1,9 @@
+npm warn exec The following package was not found and will be installed: tsx@4.23.0
+npm error code ENOENT
+npm error syscall readlink
+npm error path /Users/vidipghosh/.npm/_npx/fd45a72a545557e9/node_modules/.bin/tsx
+npm error errno -2
+npm error enoent ENOENT: no such file or directory, readlink '/Users/vidipghosh/.npm/_npx/fd45a72a545557e9/node_modules/.bin/tsx'
+npm error enoent This is related to npm not being able to find a file.
+npm error enoent
+npm error A complete log of this run can be found in: /Users/vidipghosh/.npm/_logs/2026-07-12T07_27_38_769Z-debug-0.log

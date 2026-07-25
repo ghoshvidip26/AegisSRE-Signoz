@@ -1,0 +1,10 @@
+pyproject.toml
+aegis_sre/__init__.py
+aegis_sre/client.py
+aegis_sre/errors.py
+aegis_sre/utils.py
+aegis_sre_sdk.egg-info/PKG-INFO
+aegis_sre_sdk.egg-info/SOURCES.txt
+aegis_sre_sdk.egg-info/dependency_links.txt
+aegis_sre_sdk.egg-info/requires.txt
+aegis_sre_sdk.egg-info/top_level.txt

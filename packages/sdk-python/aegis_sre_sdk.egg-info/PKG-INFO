@@ -1,0 +1,7 @@
+Metadata-Version: 2.4
+Name: aegis-sre-sdk
+Version: 0.1.0
+Summary: Generic runtime transport SDK for AegisSRE. Captures errors and runtime context and forwards them to the AegisSRE Runtime — no incident classification or intelligence lives in the SDK itself.
+License: MIT
+Requires-Python: >=3.9
+Requires-Dist: requests>=2.28

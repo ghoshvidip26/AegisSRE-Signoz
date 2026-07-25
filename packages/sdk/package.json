@@ -1,0 +1,40 @@
+{
+  "name": "@aegis-sre/sdk",
+  "version": "0.2.0",
+  "description": "Generic runtime transport SDK for AegisSRE. Captures errors + runtime context and forwards to the AegisSRE Runtime — no incident classification or intelligence in the SDK itself.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "aegis",
+    "sre",
+    "incident",
+    "observability",
+    "sdk"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "tsup": "^8.3.0",
+    "typescript": "^5.6.0"
+  }
+}
