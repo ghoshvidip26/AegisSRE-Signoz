@@ -19,7 +19,7 @@ STEP 3: Return ONLY a JSON object (no markdown, no explanation):
   "recommendation": "close_incident" or "escalate",
   "evidence": ["what you observed"]
 }`,
-    model: "openai/gpt-4o-mini",
+    model: process.env.OPENAI_API_KEY ? "openai/gpt-4o-mini" : "groq/openai/gpt-oss-120b",
     tools: {
         metricsTool,
     }

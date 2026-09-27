@@ -10,6 +10,6 @@ export const classifierAgent = new Agent({
     instructions: classifierPrompt,
     model: process.env.OPENAI_API_KEY
         ? "openai/gpt-4o-mini"
-        : "google/gemini-2.5-flash",
+        : "groq/openai/gpt-oss-120b",
     memory: new Memory(),
 });

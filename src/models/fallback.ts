@@ -24,7 +24,7 @@ export const fallbackModel = ollama("gemma3:1b");
  * Fallback: Local Ollama gemma3:1b (always available, 815MB, no tool support)
  */
 export const MODEL_CONFIG = {
-    primary: process.env.OPENAI_API_KEY ? "openai/gpt-4o-mini" : "google/gemini-2.5-flash",
+    primary: process.env.OPENAI_API_KEY ? "openai/gpt-4o-mini" : "groq/openai/gpt-oss-120b",
     fallbackProvider: ollama,
     fallbackModelId: "gemma3:1b",
 } as const;

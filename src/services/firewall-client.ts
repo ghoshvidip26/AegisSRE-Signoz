@@ -49,6 +49,20 @@ function getClient(): Promise<Client> {
     return clientPromise;
 }
 
+/**
+ * Closes the underlying connection, if one was opened. AegisSRE itself never
+ * needs this — the server process just keeps the connection open — but a
+ * short-lived script (see scripts/test-firewall.ts) should call this before
+ * exiting so the Python child gets a clean shutdown instead of a pipe
+ * slammed shut mid-write.
+ */
+export async function closeFirewallClient(): Promise<void> {
+    if (!clientPromise) return;
+    const client = await clientPromise.catch(() => null);
+    clientPromise = null;
+    await client?.close();
+}
+
 export type FirewallDecision = "ALLOW" | "PENDING" | "BLOCK";
 
 export type FirewallCheckResult = {

@@ -25,7 +25,7 @@ Important guidelines:
 - After verification, summarize the full incident response.
 
 Keep responses concise and actionable. You're talking to on-call engineers who need answers fast.`,
-    model: process.env.OPENAI_API_KEY ? "openai/gpt-4o-mini" : "google/gemini-2.5-flash",
+    model: process.env.OPENAI_API_KEY ? "openai/gpt-4o-mini" : "groq/openai/gpt-oss-120b",
     tools: {
         "log-tool": logTool,
         "metrics-tool": metricsTool,

@@ -8,7 +8,7 @@ export const diagnosisAgent = new Agent({
     name: "Diagnosis Agent",
     description: "Analyzes production incidents and identifies the probable root cause.",
     instructions: diagnosisPrompt,
-    model: process.env.OPENAI_API_KEY ? "openai/gpt-4o-mini" : "google/gemini-2.5-flash",
+    model: process.env.OPENAI_API_KEY ? "openai/gpt-4o-mini" : "groq/openai/gpt-oss-120b",
     tools: {
         "log-tool": logTool,
         "metrics-tool": metricsTool,
