@@ -65,6 +65,7 @@ The system is organized into **six functional layers**:
 | Agent | Responsibility |
 |---|---|
 | **Coordinator Agent** | Main entry point. Ingests alerts, delegates to specialist agents. |
+| **Classifier** | Fast triage — categorizes the raw report into a failure category + affected service via Jev (Choice), falling back to an LLM agent if TypeSafe isn't configured. |
 | **Diagnosis Agent** | Correlates logs & metrics to identify root cause and severity. |
 | **Planning Agent** | Generates a remediation DAG. Validates against Enkrypt AI policy. |
 | **Execution Agent** | Executes approved commands in E2B isolated sandbox. |
@@ -105,6 +106,7 @@ Planning Agent → Enkrypt AI Proxy → OPA Policy Check → Decision Gateway �
 | **Framework** | Next.js 16 (Turbopack), TypeScript |
 | **Multi-Agent Orchestration** | Mastra SDK |
 | **LLM Providers** | OpenAI GPT-4o-mini / Google Gemini 2.5 Flash |
+| **Fast Triage Classification** | [TypeSafe](https://typesafe.ai) (Jev System One model) |
 | **AI Safety** | Enkrypt AI Proxy, OPA |
 | **Vector Memory** | Qdrant |
 | **Execution Sandbox** | E2B (Firecracker MicroVMs) |
@@ -136,6 +138,8 @@ Copy `.env.example` to `.env` and fill in your credentials:
 ```env
 OPENAI_API_KEY=sk-...         # Optional: falls back to Gemini if not set
 GOOGLE_GENERATIVE_AI_API_KEY= # Required if OPENAI_API_KEY is not set
+TYPESAFE_API_KEY=             # Optional: powers fast Jev-based incident classification;
+                               # falls back to the LLM classifier agent if unset
 ```
 
 ### Run Development Server
