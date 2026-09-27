@@ -9,6 +9,7 @@ import {
 import type { DiagnosisInput, Executor, RunbookContext } from "@/src/runbooks";
 import type { IncidentOperation } from "@/lib/incidents/incident";
 import { generateWithFailover } from "@/src/models/with-failover";
+import { classifyIncidentWithJev } from "@/src/services/jev-client";
 import { tracer } from "@/lib/tracing";
 import { SpanStatusCode } from "@opentelemetry/api";
 
@@ -194,31 +195,46 @@ const classifyStep = createStep({
                     timestamp: stepStart,
                 })
 
-                const agent = mastra.getAgent("classifierAgent");
-                const result = await generateWithFailover(
-                    agent,
-                    `Classify this incident. Return raw JSON only with keys category, service, confidence.\n\n${inputData.incidentDescription}`
-                );
-                span.setAttribute("llm.provider", result.provider);
-
                 let category = "unknown";
                 let classifierService = inputData.service || "unknown";
                 let classifierConfidence = 0;
 
-                const cleaned = result.text
-                    .trim()
-                    .replace(/^```(?:json)?\s*/i, "")
-                    .replace(/```$/i, "")
-                    .trim();
-                const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
-                if (jsonMatch) {
-                    try {
-                        const parsed = JSON.parse(jsonMatch[0]);
-                        if (typeof parsed.category === "string") category = parsed.category;
-                        if (typeof parsed.service === "string") classifierService = parsed.service;
-                        if (typeof parsed.confidence === "number") classifierConfidence = parsed.confidence;
-                    } catch {
-                        // stay with defaults
+                // Fast path: a typed Jev Choice call replaces the old free-form LLM
+                // completion + regex/fence-stripped JSON parse below. Same category
+                // vocabulary (see src/services/jev-client.ts), a real probability
+                // distribution instead of a self-reported confidence number, and no
+                // JSON to fail to parse.
+                const jevResult = await classifyIncidentWithJev(inputData.incidentDescription);
+
+                if (jevResult) {
+                    category = jevResult.category;
+                    classifierService = jevResult.service;
+                    classifierConfidence = jevResult.confidence;
+                    span.setAttribute("classifier.source", "jev");
+                } else {
+                    span.setAttribute("classifier.source", "llm-fallback");
+                    const agent = mastra.getAgent("classifierAgent");
+                    const result = await generateWithFailover(
+                        agent,
+                        `Classify this incident. Return raw JSON only with keys category, service, confidence.\n\n${inputData.incidentDescription}`
+                    );
+                    span.setAttribute("llm.provider", result.provider);
+
+                    const cleaned = result.text
+                        .trim()
+                        .replace(/^```(?:json)?\s*/i, "")
+                        .replace(/```$/i, "")
+                        .trim();
+                    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+                    if (jsonMatch) {
+                        try {
+                            const parsed = JSON.parse(jsonMatch[0]);
+                            if (typeof parsed.category === "string") category = parsed.category;
+                            if (typeof parsed.service === "string") classifierService = parsed.service;
+                            if (typeof parsed.confidence === "number") classifierConfidence = parsed.confidence;
+                        } catch {
+                            // stay with defaults
+                        }
                     }
                 }
 
