@@ -41,6 +41,14 @@ export interface IncidentOperation {
   duration?: number;
 
   details?: string;
+
+  /** Aegis-Firewall's verdict on this operation's command, when applicable. */
+  firewall?: {
+    decision: "ALLOW" | "PENDING" | "BLOCK";
+    reason: string;
+    severity: string;
+    riskScore: number;
+  };
 }
 
 export interface Incident {

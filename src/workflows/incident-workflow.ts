@@ -71,6 +71,7 @@ function withLiveOperationsLog(
                     status: result.ok ? "completed" : "failed",
                     details: result.stdout?.trim() || result.stderr?.trim() || undefined,
                     duration: Date.now() - startedAt,
+                    firewall: result.firewall,
                 });
             }
 

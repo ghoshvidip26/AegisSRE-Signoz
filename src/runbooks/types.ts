@@ -15,6 +15,19 @@ export type ExecutorResult = {
     ok: boolean;
     stdout?: string;
     stderr?: string;
+    /**
+     * Aegis-Firewall's verdict on this command, if the MCP sidecar was
+     * reachable. Absent (not just undefined-decision) means the firewall
+     * check itself failed and the command ran fail-open — surfaced in the UI
+     * so an ALLOW-by-connectivity-failure doesn't look identical to a real
+     * policy ALLOW.
+     */
+    firewall?: {
+        decision: "ALLOW" | "PENDING" | "BLOCK";
+        reason: string;
+        severity: string;
+        riskScore: number;
+    };
 };
 
 export type Executor = {

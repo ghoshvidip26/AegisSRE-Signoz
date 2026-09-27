@@ -13,10 +13,20 @@ export const localShellExecutor: Executor = {
                 `[firewall] ${firewall.decision} "${command}" (${firewall.severity}, score=${firewall.risk_score}) — ${firewall.reason}`
             );
         }
+        const firewallInfo = firewall
+            ? {
+                  decision: firewall.decision,
+                  reason: firewall.reason,
+                  severity: firewall.severity,
+                  riskScore: firewall.risk_score,
+              }
+            : undefined;
+
         if (firewall?.decision === "BLOCK") {
             return {
                 ok: false,
                 stderr: `Blocked by Aegis-Firewall: ${firewall.reason} (severity: ${firewall.severity})`,
+                firewall: firewallInfo,
             };
         }
 
@@ -24,13 +34,14 @@ export const localShellExecutor: Executor = {
             const { stdout, stderr } = await execAsync(command, {
                 timeout: opts?.timeoutMs ?? 10_000,
             });
-            return { ok: true, stdout, stderr };
+            return { ok: true, stdout, stderr, firewall: firewallInfo };
         } catch (err: unknown) {
             const e = err as { stdout?: string; stderr?: string; message?: string };
             return {
                 ok: false,
                 stdout: e.stdout,
                 stderr: e.stderr ?? e.message ?? "unknown error",
+                firewall: firewallInfo,
             };
         }
     },

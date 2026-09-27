@@ -16,7 +16,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { TraceCard, type TraceSummary } from '@/components/incident-details/trace-card'
-import { WorkflowStages, type IncidentOperation } from '@/components/incident-details/workflow-stages'
+import { WorkflowStages, FirewallBadge, type IncidentOperation } from '@/components/incident-details/workflow-stages'
 import { VerificationChecklist } from '@/components/incident-details/verification-checklist'
 
 type Incident = {
@@ -430,6 +430,7 @@ function OperationsTimeline({ operationsLog, dense }: { operationsLog: IncidentO
                   ({op.duration < 1000 ? `${op.duration}ms` : `${(op.duration / 1000).toFixed(1)}s`})
                 </span>
               )}
+              {op.firewall && <FirewallBadge firewall={op.firewall} />}
             </div>
             <p className={`mt-0.5 ${dense ? '' : 'text-sm'} text-foreground/90 break-words`}>{op.title}</p>
             {op.details && !dense && (
