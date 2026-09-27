@@ -1,127 +1,72 @@
-# AegisSRE — Autonomous DevOps SRE Engine
+# AegisSRE
 
-<div align="center">
-
-![AegisSRE](https://img.shields.io/badge/AegisSRE-Autonomous%20SRE%20Engine-blueviolet?style=for-the-badge)
-![Next.js](https://img.shields.io/badge/Next.js-16.2-black?style=for-the-badge&logo=next.js)
-![Mastra](https://img.shields.io/badge/Mastra-Multi--Agent-6366f1?style=for-the-badge)
-![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=for-the-badge&logo=typescript)
-![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
-
-**An enterprise-grade, governed autonomous system that ingests production alerts, diagnoses root causes, and executes remediations within a high-security, human-in-the-loop framework.**
-
-</div>
+**A governed, multi-agent incident response system.** Services report errors via SDK; a Mastra agent pipeline classifies, diagnoses root cause, and — for known failure modes — auto-remediates through vetted runbooks, gated by risk tier and a command-level safety firewall.
 
 ---
 
-## 🚨 The Problem
-
-Modern cloud-native environments generate millions of noisy alerts every day, leading to:
-
-- **Alert Fatigue** — SRE teams are overwhelmed, leading to burnout and missed critical signals.
-- **Slow MTTR** — Diagnosing root causes across distributed logs and metrics costs enterprises up to **$9,000 per minute of downtime**.
-- **The Trust Gap** — Organizations are hesitant to grant AI "write access" to production due to hallucinations, unsafe commands, and lack of context.
-
----
-
-## ✅ The Solution: Governed Autonomy
-
-AegisSRE transitions incident response from simple automation to **Governed Autonomy** — providing the speed of AI while ensuring humans retain ultimate authority through a centralized **Decision Gateway** and a robust safety layer.
+## How it works
 
 ```mermaid
 graph TD
-    A[Production Alert] --> B[Coordinator Agent]
-    B --> C[log-tool + metrics-tool]
-    C --> D[Diagnosis Agent]
-    D --> E[Planning Agent]
-    E --> F[Enkrypt AI Safety Gate]
-    F --> G[Decision Gateway / HITL Approval]
-    G --> H[Execution Agent]
-    H --> I[Verification Agent]
-    I --> J{Resolved?}
-    J -- Yes --> K[Auto-Close Incident]
-    J -- No --> L[Auto-Rollback]
+    A[Service reports error<br/>Node/Python SDK] --> B[POST /api/incidents]
+    B --> C[Coordinator Agent]
+    C --> D[Classify<br/>Jev/TypeSafe → LLM fallback]
+    D --> E[Diagnosis Agent<br/>root cause + severity]
+    E --> F[Planning Agent<br/>+ Enkrypt safety gate]
+    F --> G{Decision Gate}
+    G -- low risk --> H[Execute Runbook]
+    G -- medium/high risk --> I[Suspend for human approval]
+    I -- approved --> H
+    H --> J[Aegis-Firewall command check]
+    J --> K[Verification Agent]
+    K --> L[Incident resolved / failed]
 ```
 
----
+1. **Report** — an external service (or a script like [Aegis-Firewall's](../Aegis-Firewall) `aegis.py`) POSTs an error to `/api/incidents` via the Node or Python SDK.
+2. **Classify** — a fast Jev/TypeSafe classifier (or an LLM fallback if `TYPESAFE_API_KEY` is unset) categorizes the failure and affected service.
+3. **Diagnose** — the Diagnosis Agent correlates log/metric tool output into a root cause and severity.
+4. **Plan** — the Planning Agent proposes a runbook, screened by the Enkrypt AI policy gate.
+5. **Gate** — the Decision Gateway auto-approves `low` risk-tier runbooks; everything else suspends the workflow until a human approves via the dashboard or `POST /api/incidents/:id/approve`.
+6. **Execute** — each shell command in the runbook is checked against **Aegis-Firewall** (a sibling MCP-based policy engine) before it runs; a `BLOCK` verdict fails that command, and a firewall-unreachable check fails open (with the decision surfaced in the UI either way).
+7. **Verify** — the Verification Agent confirms recovery from post-execution telemetry.
 
-## 🏗️ Architecture
-
-The system is organized into **six functional layers**:
-
-| Layer | Components |
-|---|---|
-| **Ingestion & Messaging Mesh** | API Gateway (Kong), Event Mesh (NATS/Kafka), PagerDuty/Sentry |
-| **Mastra Multi-Agent Core** | Coordinator, Diagnosis, Planning, Execution, Verification Agents |
-| **Governance & Decision Gateway** | Enkrypt AI Proxy, OPA Policy Engine, HITL Approval |
-| **Secure Execution Layer** | E2B Sandboxes (Firecracker MicroVMs) |
-| **Persistence & Secrets** | Qdrant (Vector Memory), LibSQL (State), HashiCorp Vault |
-| **Observability Stack** | OpenTelemetry, Prometheus, Grafana, Jaeger |
+If the primary LLM rate-limits, `generateWithFailover()` retries once, then falls back to a local Ollama model in tool-free mode so triage never fully stalls.
 
 ---
 
-## 🤖 Multi-Agent Pipeline
+## Features
 
-| Agent | Responsibility |
-|---|---|
-| **Coordinator Agent** | Main entry point. Ingests alerts, delegates to specialist agents. |
-| **Classifier** | Fast triage — categorizes the raw report into a failure category + affected service via Jev (Choice), falling back to an LLM agent if TypeSafe isn't configured. |
-| **Diagnosis Agent** | Correlates logs & metrics to identify root cause and severity. |
-| **Planning Agent** | Generates a remediation DAG. Validates against Enkrypt AI policy. |
-| **Execution Agent** | Executes approved commands in E2B isolated sandbox. |
-| **Verification Agent** | Monitors post-execution telemetry to confirm recovery. |
-
----
-
-## 🛡️ Safety & Governance
-
-The **Defense-in-Depth** pipeline ensures zero unauthorized production mutations:
-
-```
-Planning Agent → Enkrypt AI Proxy → OPA Policy Check → Decision Gateway → HITL Approval → E2B Sandbox
-```
-
-- **Enkrypt AI Proxy** — Screens remediation plans for prompt injection and dangerous commands.
-- **OPA (Open Policy Agent)** — GitOps-synced policy rules evaluated before every execution.
-- **Decision Gateway** — Risk-based routing: Low → Autonomous, Medium → Slack Approval, High → Senior SRE, Critical → Block.
-- **Emergency Kill Switch** — Instantly halts all Mastra workflows and revokes sandbox credentials.
+- **Multi-agent Mastra pipeline** — Coordinator, Classifier, Diagnosis, Planning, Execution, Verification agents, orchestrated as a single suspendable `incidentWorkflow`.
+- **Risk-tiered auto-remediation** — runbooks are matched by confidence against the diagnosis; `low`-risk ones execute autonomously, anything higher suspends for human approval.
+- **Aegis-Firewall command gate** — every runbook shell command is screened by a separate MCP-based policy engine (JevGuard) for credential access, destructive deletes, privilege escalation, etc., before it's allowed to run.
+- **Provider failover** — OpenAI → Groq → local Ollama, so a rate limit on one provider doesn't stall incident response.
+- **SDKs** — Node (`packages/sdk`) and Python (`packages/sdk-python`) clients so any service can report incidents with two lines of code.
+- **Live dashboard** — Next.js UI with a real-time workflow visualization, per-operation firewall verdicts, telemetry panel, and incident chat.
+- **OpenTelemetry tracing** — every API route and workflow step is wrapped in a span, exported to SigNoz.
 
 ---
 
-## 🖥️ Dashboard Features
-
-- **Live Flowchart** — React Flow canvas visualizing active agent states in real-time (Coordinator → Diagnosis → Plan → Execute → Verify).
-- **Live Telemetry** — CPU, RAM, Error Rate, and Latency dashboards updated from tool outputs.
-- **Incident Pipeline Stepper** — RUNNING / PENDING / COMPLETED states per workflow step.
-- **Live Operations Tail** — Real-time log stream from the affected service.
-- **Reset Chat** — One-click button to clear thread memory, reset incident state, and start fresh.
-- **Dark / Light Theme** — Glassmorphic premium UI with full theme toggle support.
-
----
-
-## ⚡ Tech Stack
+## Tech stack
 
 | Category | Technology |
 |---|---|
-| **Framework** | Next.js 16 (Turbopack), TypeScript |
-| **Multi-Agent Orchestration** | Mastra SDK |
-| **LLM Providers** | OpenAI GPT-4o-mini / Google Gemini 2.5 Flash |
-| **Fast Triage Classification** | [TypeSafe](https://typesafe.ai) (Jev System One model) |
-| **AI Safety** | Enkrypt AI Proxy, OPA |
-| **Vector Memory** | Qdrant |
-| **Execution Sandbox** | E2B (Firecracker MicroVMs) |
-| **Messaging** | NATS, Kafka (with DLQ) |
-| **Observability** | OpenTelemetry, Prometheus, Grafana, Jaeger |
-| **Secrets Management** | HashiCorp Vault |
+| Framework | Next.js 16 (Turbopack), TypeScript, React 19 |
+| Agent orchestration | [Mastra](https://mastra.ai) |
+| LLM providers | OpenAI (`gpt-4o-mini`) → Groq (`gpt-oss-120b`) → local Ollama fallback |
+| Fast classification | [TypeSafe](https://typesafe.ai) (Jev System One), LLM fallback |
+| Safety gate | Enkrypt AI policy proxy (plan-level), Aegis-Firewall/JevGuard (command-level, via MCP) |
+| Observability | OpenTelemetry SDK, exported to SigNoz |
+| Storage | LibSQL (Mastra state/traces), in-memory incident store |
+| SDKs | `@aegis-sre/sdk` (Node), `aegis-sre-sdk` (Python) |
 
 ---
 
-## 🚀 Getting Started
+## Getting started
 
 ### Prerequisites
 
 - Node.js 18+
-- An OpenAI or Google Gemini API key
+- An OpenAI or Groq API key (at least one required)
 
 ### Installation
 
@@ -132,100 +77,146 @@ npm install
 git config core.hooksPath .githooks
 ```
 
-The last line enables the pre-commit secret scan (`.githooks/pre-commit`) — `core.hooksPath` is a local git setting, not something a clone picks up automatically, so each clone needs to run it once.
+The last line enables the pre-commit secret scan (`.githooks/pre-commit`) — `core.hooksPath` is a local git setting, so each clone needs to run it once.
 
-### Environment Setup
+### Environment setup
 
-Copy `.env.example` to `.env` and fill in your credentials:
+Copy `.env.example` to `.env` and fill in what you need:
 
 ```env
-OPENAI_API_KEY=sk-...         # Optional: falls back to Gemini if not set
-GOOGLE_GENERATIVE_AI_API_KEY= # Required if OPENAI_API_KEY is not set
-TYPESAFE_API_KEY=             # Optional: powers fast Jev-based incident classification;
-                               # falls back to the LLM classifier agent if unset
+# At least one LLM provider is required (precedence: OpenAI, then Groq)
+OPENAI_API_KEY=
+GROQ_API_KEY=
+OLLAMA_BASE_URL=            # local fallback model, optional
+
+# Fast incident classification — falls back to an LLM agent if unset
+TYPESAFE_API_KEY=
+
+# Observability
+SIGNOZ_URL=
+SIGNOZ_API_KEY=
+
+# Plan-level safety gate
+ENKRYPT_API_KEY=
+ENKRYPT_BASE_URL=
+
+# Require Authorization: Bearer <key> on POST /api/incidents. Unset = no auth.
+AEGIS_API_KEY=
+
+# Command-level firewall (JevGuard/Aegis-Firewall). Unset = commands run unchecked.
+AEGIS_FIREWALL_MCP_PATH=
+AEGIS_FIREWALL_PYTHON=
 ```
 
-### Run Development Server
+### Run
 
 ```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+Open [http://localhost:3000](http://localhost:3000).
 
 ---
 
-## 🧪 Testing the Demo
+## Reporting incidents from another service
 
-1. **Start Fresh** — Click the **Reset** (`↺`) button in the top header to clear all state.
-2. **Trigger an Incident** — Paste this into the chat:
-   > *"I received a P1 alert: CPU utilization is spiking at 99% on the auth-service, latency is 1200ms, error rate is 15%. Logs show 'connection pool saturated'. Check logs and metrics to diagnose and run the workflow."*
-3. **Watch the Pipeline** — The flowchart nodes will light up in sequence as agents hand off work.
-4. **Live Telemetry** — CPU, RAM, Latency, and Error Rate populate automatically from tool outputs.
-5. **Approve the Remediation** — Review the proposed recovery steps and click Approve.
-6. **See Resolution** — All nodes turn green and the header shows **Resolved**.
+### Node
 
----
+```ts
+import { AegisClient } from "@aegis-sre/sdk";
 
-## 📋 Human Approval Matrix
+const aegis = new AegisClient({
+  baseUrl: "http://localhost:3000",
+  service: "payments-api",
+  apiKey: process.env.AEGIS_API_KEY, // only needed if the server sets AEGIS_API_KEY
+});
 
-| Operation | Risk | Autonomous | HITL Required |
-|---|---|---|---|
-| Read Logs / Metrics | Low | ✅ Yes | ❌ No |
-| Search Memory | Low | ✅ Yes | ❌ No |
-| Restart K8s Pod | Medium | ❌ No | ✅ Slack Approval |
-| Rollback Deployment | High | ❌ No | ✅ Senior SRE |
-| DB Migration | Critical | ❌ No | 🔴 Blocked |
-| Resource Deletion | Critical | ❌ No | 🔴 Blocked |
+await aegis.report({ message: "Connection pool exhausted" });
+// or: aegis.installGlobalHandlers() to auto-capture uncaught exceptions
+```
 
----
+### Python
 
-## 📈 Impact
+```python
+from aegis_sre import AegisClient
 
-| Metric | Target |
-|---|---|
-| MTTR Reduction | **50–90%** |
-| Safety Compliance | **0 unauthorized mutations** |
-| HITL Efficiency | High % of plans approved without modification |
-| Alert Response Time | **< 30 seconds** end-to-end |
+client = AegisClient(base_url="http://localhost:3000", api_key=os.environ.get("AEGIS_SRE_API_KEY"))
+client.create_incident(service="redis", message="Redis ping failed: connection refused", severity="P1")
+```
+
+Both SDKs only attach the `Authorization` header when an API key is passed — if the server has `AEGIS_API_KEY` set, every caller must supply the matching key or the request is rejected with `401` before an incident is ever created.
 
 ---
 
-## 📂 Project Structure
+## API
+
+| Route | Method | Purpose |
+|---|---|---|
+| `/api/incidents` | `POST` | Create an incident (`service`, `message` required) and kick off the async diagnosis/remediation workflow. |
+| `/api/incidents` | `GET` | List all incidents. |
+| `/api/incidents/:id` | `GET` | Fetch one incident. |
+| `/api/incidents/:id/approve` | `POST` | Approve or reject a suspended (non-low-risk) runbook. |
+| `/api/incidents/:id/trace` | `GET` | Fetch the OpenTelemetry trace for an incident. |
+| `/api/chat` | `POST` | Streaming chat with the Coordinator Agent, scoped to an incident. |
+
+---
+
+## Runbooks
+
+| ID | Description | Risk tier |
+|---|---|---|
+| `redis-restart` | Restart local Redis when it's unreachable or the connection pool is exhausted. | low (auto) |
+| `llm-rate-limit` | Recover LLM pipeline degradation: probe primary, retry once, fail over to Ollama. | low (auto) |
+| `git-branch` | Check for divergence between remote and local branches. | medium (approval) |
+| `node-version` | Detect a Node version mismatch against project requirements. | medium (approval) |
+
+Only `low`-risk runbooks execute autonomously; everything else suspends the workflow until approved via the dashboard or the approve endpoint.
+
+---
+
+## Project structure
 
 ```
-AegisSRE-MastraAI/
+AegisSRE-Signoz/
 ├── app/
 │   ├── api/
-│   │   ├── chat/          # Chat stream endpoint + Reset endpoint
-│   │   └── incidents/     # Incident CRUD + Mastra workflow trigger
-│   ├── layout.tsx         # Root layout with suppressed hydration
-│   └── page.tsx           # Main dashboard with IncidentHeader + WorkflowCanvas
+│   │   ├── chat/                  # Streaming chat endpoint
+│   │   ├── incidents/             # Create/list/approve/trace endpoints
+│   │   └── telemetry/health/      # Health check
+│   └── page.tsx                   # Dashboard
 ├── components/
-│   ├── dashboard/
-│   │   ├── incident-context.tsx  # Real-time tool output parser + context provider
-│   │   ├── sidebar.tsx           # System health + incident list
-│   │   ├── workflow-canvas.tsx   # React Flow pipeline visualization
-│   │   └── context-panel.tsx     # Telemetry + logs right panel
-│   └── ai-elements/              # Chat message UI components
+│   ├── dashboard/                 # Sidebar, workflow canvas, telemetry panel
+│   └── incident-details/          # Workflow stages, firewall badges, verification checklist
 ├── src/
-│   ├── agents/            # 5 Mastra agents (coordinator, diagnosis, planning, execution, verification)
-│   ├── tools/             # log-tool, metrics-tool, delegation tools
-│   ├── mastra/            # Mastra init + Enkrypt AI policy tool
-│   ├── prompts/           # CRISPE-framework agent prompts
-│   └── workflows/         # Incident state machine workflow
+│   ├── agents/                    # Coordinator, Classifier, Diagnosis, Planning, Execution, Verification
+│   ├── workflows/                 # incidentWorkflow — the suspendable state machine
+│   ├── runbooks/                  # Registered runbooks + local shell executor
+│   ├── services/                  # Enkrypt gate, Aegis-Firewall MCP client, Jev classifier client
+│   ├── tools/                     # log/metrics/delegate tools wired into the Coordinator
+│   ├── prompts/                   # Agent prompts
+│   └── mastra/index.ts            # Mastra instance — all agents/workflows registered here
 ├── lib/
-│   └── incidents/         # In-memory incident store with CRUD + clear
-├── docs/
-│   ├── CRISPE_PROMPTS.md
-│   ├── IEEE830_REQUIREMENTS.md
-│   └── OWASP_SECURITY_SPECS.md
-├── PRD.md                 # Full Product Requirements Document
-└── PITCH.md               # Hackathon pitch deck + live demo guide
+│   ├── incidents/                 # In-memory incident store
+│   ├── auth.ts                    # AEGIS_API_KEY bearer-token check
+│   └── tracing.ts                 # OpenTelemetry tracer setup
+├── packages/
+│   ├── sdk/                       # Node SDK (@aegis-sre/sdk)
+│   └── sdk-python/                # Python SDK (aegis-sre-sdk)
+├── scripts/
+│   └── test-firewall.ts           # Standalone Aegis-Firewall connectivity test
+└── docs/                          # CRISPE prompts, requirements, security specs
 ```
 
 ---
 
-## 📄 License
+## Testing
+
+```bash
+npm run test:firewall   # verifies the Aegis-Firewall MCP connection end-to-end
+```
+
+---
+
+## License
 
 MIT © AegisSRE Team
