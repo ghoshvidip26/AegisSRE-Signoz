@@ -9,7 +9,7 @@ function parseConnectedClients(infoOutput: string | undefined): number | null {
 export const redisRestartRunbook: Runbook = {
     id: "redis-restart",
     description: "Restart local Redis when it's unreachable or the connection pool is exhausted.",
-    riskTier: "medium",
+    riskTier: "low",
 
     match(diagnosis) {
         const text = `${diagnosis.rootCause} ${diagnosis.recommendation}`.toLowerCase();

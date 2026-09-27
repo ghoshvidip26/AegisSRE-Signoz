@@ -129,7 +129,10 @@ Planning Agent → Enkrypt AI Proxy → OPA Policy Check → Decision Gateway �
 git clone https://github.com/ghoshvidip26/AegisSRE-MastraAI.git
 cd AegisSRE-MastraAI
 npm install
+git config core.hooksPath .githooks
 ```
+
+The last line enables the pre-commit secret scan (`.githooks/pre-commit`) — `core.hooksPath` is a local git setting, not something a clone picks up automatically, so each clone needs to run it once.
 
 ### Environment Setup
 

@@ -1,0 +1,26 @@
+#!/bin/sh
+# Blocks the commit if anything staged looks like a secret or a credential
+# file. Delegates to Aegis-Firewall's scanner (scripts/check_staged.py),
+# located via AEGIS_FIREWALL_MCP_PATH in .env. Fails open — if the scanner
+# isn't configured or can't be found, the commit proceeds unchecked rather
+# than blocking every commit on a sibling project being set up.
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+ENV_FILE="$REPO_ROOT/.env"
+
+FIREWALL_MCP_PATH=""
+if [ -f "$ENV_FILE" ]; then
+    FIREWALL_MCP_PATH=$(grep -E '^AEGIS_FIREWALL_MCP_PATH=' "$ENV_FILE" | head -1 | cut -d'=' -f2- | tr -d '"'"'"'')
+fi
+
+if [ -z "$FIREWALL_MCP_PATH" ]; then
+    echo "[pre-commit] AEGIS_FIREWALL_MCP_PATH not set in .env — skipping secret scan."
+    exit 0
+fi
+
+SCANNER="$(dirname "$FIREWALL_MCP_PATH")/scripts/check_staged.py"
+if [ ! -f "$SCANNER" ]; then
+    echo "[pre-commit] Aegis-Firewall scanner not found at $SCANNER — skipping secret scan."
+    exit 0
+fi
+
+python3 "$SCANNER"
